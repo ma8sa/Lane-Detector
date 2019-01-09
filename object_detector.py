@@ -9,7 +9,7 @@ def color_array(size=25):
     return np.array(color)
 
 
-def mask_out(frame_no,th=80,path="./data/",mask_color=[255,255,255]):
+def mask_out(frame_no,th=90,path="./data/",mask_color=[255,255,255]):
 
     img = path + "Left/" + str(frame).zfill(6) + ".png"
     s_img = path + "17200/" + str(frame).zfill(6) + ".png"
@@ -60,9 +60,8 @@ def cluster_c(th_image,eps_=5,min_samples_=45):
     num_labels = np.amax(labels)
 
     clr_image = np.zeros((size[0],size[1],3), np.uint8)
+    clus_image = np.zeros((size[0],size[1]), np.uint8)
     clr = color_array()
-    print(np.amin(labels))
-    input()
     mni=10
 
     for i,x in enumerate(X):
@@ -70,7 +69,9 @@ def cluster_c(th_image,eps_=5,min_samples_=45):
             continue
         mni = min(labels[i],mni)
         c = clr[labels[i]]
+
         clr_image[x[0],x[1]] = c
+        clus_image[x[0],x[1]] = 255 - labels[i]
 
 
     for i in range(num_labels):
@@ -82,7 +83,8 @@ def cluster_c(th_image,eps_=5,min_samples_=45):
         clr_image[x:x+x_l,y:y+y_l] = clr[i]
 
 
-    return clr_image
+    return clr_image,clus_image
+
 
 
 
@@ -96,10 +98,13 @@ if __name__ == "__main__":
     im.sort()
 
     for frame in im:
+
         print(" Processing frame : {}".format(frame))
         im,t_im,s_im=mask_out(frame)
-        c_im = cluster_c(t_im)
+        c_im,cls_im = cluster_c(t_im)
+
         cv2.imwrite( result_fol + str(frame).zfill(6) + "_m_test.png",im)
         cv2.imwrite( result_fol + str(frame).zfill(6) + "_s_test.png",s_im)
         cv2.imwrite( result_fol + str(frame).zfill(6) + "_c_test.png",c_im)
+        cv2.imwrite( result_fol + str(frame).zfill(6) + "_cluster_test.png",cls_im)
         cv2.imwrite( result_fol + str(frame).zfill(6) +  "_t_test.png",t_im)
