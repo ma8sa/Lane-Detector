@@ -2,13 +2,51 @@ import numpy as np
 import cv2
 import os
 
+color = [    
+       [55, 181, 57],
+       [153, 108, 6],
+       [112, 105, 191],
+       [89, 121, 72],
+       [190, 225, 64],
+       [206, 190, 59],
+       [81, 13, 36],
+       [115, 176, 195],
+       [161, 171, 27],
+       [135, 169, 180],
+       [29, 26, 199],
+       [102, 16, 239],
+       [242, 107, 146],
+       [156, 198, 23],
+       [49, 89, 160],
+       [68, 218, 116],
+       [11, 236, 9],
+       [196, 30, 8],
+       [121, 67, 28],
+       [0, 53, 65],
+       [146, 52, 70],
+       [226, 149, 143],
+       [151, 126, 171],
+       [194, 39, 7],
+       [205, 120, 161],
+       [212, 51, 60],
+       [211, 80, 208],
+       [189, 135, 188],
+       [54, 72, 205],
+       [103, 252, 157],
+       [124, 21, 123],
+       [19, 132, 69],
+       [195, 237, 132],
+       [94, 253, 175],
+       [182, 251, 87],
+       [90, 162, 242] ]
 
 class Cluster:
 
-    def __init__(self,window,frame):
+    def __init__(self,window,frame,verbose=False):
 
         self.frame = frame
         self.window = window
+        self.ver = verbose
         print( "Frame= {}, Window= {} initializing".format(self.frame,self.window))
         self.cluster_array = self.create_cluster_array()
         self.flow_array = self.create_flow_array()
@@ -24,7 +62,8 @@ class Cluster:
         for i in range(self.window):
             test[i] = np.load(res_fol + "clusters_" + str(self.frame+i).zfill(6) + ".npy")
             test[i] = test[i][:-1]
-        print("-----------------      cluster array created") 
+        if self.ver:
+           print("-----------------      cluster array created") 
         return test 
 
 
@@ -33,7 +72,8 @@ class Cluster:
         res_fol = "./res/"# TODO change it to make ti portable
         for i in range(self.window):
             test[i] = np.load( str(self.frame+i).zfill(5) + "_frame.npy")
-        print("-----------------      flow array created") 
+        if self.ver:
+           print("-----------------      flow array created") 
         return test 
 
 
@@ -42,7 +82,8 @@ class Cluster:
         res_fol = "./res/"# TODO change it to make ti portable
         for i in range(self.window):
             test[i] = cv2.imread( "./res/" + str(self.frame+i).zfill(6) + "_cluster_test.png",cv2.IMREAD_GRAYSCALE)
-        print("-----------------      image array created") 
+        if self.ver:
+           print("-----------------      image array created") 
         return test 
 
 
@@ -89,7 +130,8 @@ class Cluster:
                 test[f].append(a)
 
 
-        print("-----------------      Tracklets created") 
+        if self.ver:
+           print("-----------------      Tracklets created") 
         return test
 
     def tracked(self): # return perfect list with all the valid tracked clusters
@@ -118,7 +160,8 @@ class Cluster:
 
             #if valid
             #add to list
-        print("-----------------      Tracklets tracked") 
+        if self.ver:
+           print("-----------------      Tracklets tracked") 
 
         return tracked
 
@@ -151,7 +194,8 @@ class Cluster:
                 test.append([rx,ry])
             ref_points.append(test)
 
-        print("-----------------      reference points created ") 
+        if self.ver:
+           print("-----------------      reference points created ") 
         return ref_points
 
 
@@ -160,22 +204,28 @@ class Cluster:
          #       os.makedirs(res_fol)
 
         np.save(res_fol + str(self.frame).zfill(6) + "_tracks.npy",np.array(self.ref_points))
-          
-        print("-----------------      saving viziualitaions results ")
+        if self.ver: 
+           print("-----------------      saving viziualitaions results ")
         if viz:
             images = [ np.zeros((720,1280,3), dtype=np.uint8) for i in range(self.window) ]
+            ln_images = [ np.zeros((720,1280,3), dtype=np.uint8) for i in range(self.window) ]
 
             font                   = cv2.FONT_HERSHEY_SIMPLEX
-            fontScale              = 2
+            fontScale              = 1
             fontColor              = (255,255,255)
             lineType               = 2
 
+            for clust,track in enumerate(self.tracklets):
+                for i,p in enumerate(track):
+
+                    for px in p:
+                        ln_images[i][px[0],px[1]] = color[clust]
 
             for clust,track in enumerate(self.ref_points):
                 for i,ix in enumerate(track):
 
                       cv2.putText(images[i],str(clust), 
-                                  (int(ix[0]),int(ix[1])), 
+                                  (int(ix[1]),int(ix[0])), 
                                   font, 
                                   fontScale,
                                   fontColor,
@@ -183,7 +233,8 @@ class Cluster:
 
             for i,im in enumerate(images):
 
-                cv2.imwrite(res_fol + str(self.frame).zfill(6) + "_" + str(i).zfill(2) + ".png",im)
+                cv2.imwrite(res_fol + str(self.frame).zfill(6) + "_" + str(i).zfill(2) + "cn.png",images[i])
+                cv2.imwrite(res_fol + str(self.frame).zfill(6) + "_" + str(i).zfill(2) + "ln.png",ln_images[i])
 
 
 
@@ -195,8 +246,7 @@ class Cluster:
 #TODO add reverse flow
 #TODO add oclusion and cluster breaking issues
 #TODO add points in tracked tracking images 
-    
-
+#TODO make sure directional oreder is correct while saveing images
 if __name__ == "__main__":
    window = 10
    data = "./data/Left"
@@ -205,7 +255,7 @@ if __name__ == "__main__":
    im = [int(x.strip(".png")) for x in im]
    im.sort()
 
-   for frame in im[130:]:
+   for frame in im[1:]:
 
        tracklet = Cluster(window,frame)
        tracklet.save_ref_array()
