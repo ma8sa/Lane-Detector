@@ -102,7 +102,6 @@ if __name__ == "__main__":
         print(" Processing frame : {}".format(frame))
         im,t_im,s_im=mask_out(frame)
         c_im,cls_im = cluster_c(t_im)
-
         cv2.imwrite( result_fol + str(frame).zfill(6) + "_m_test.png",im)
         cv2.imwrite( result_fol + str(frame).zfill(6) + "_s_test.png",s_im)
         cv2.imwrite( result_fol + str(frame).zfill(6) + "_c_test.png",c_im)

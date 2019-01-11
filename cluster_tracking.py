@@ -56,7 +56,7 @@ def wrap_image(im1,im2,flow):# to check how flopw works
             nx = i + y[1]
             ny = j + y[0]
 
-            if ny < 0 or ny >= 1200 or nx < 0 or nx >= 720:
+            if ny < 0 or ny >= 1280 or nx < 0 or nx >= 720:
                 continue
 
             wrap_im[int(nx),int(ny)] = im1[i,j]
@@ -68,9 +68,35 @@ def wrap_image(im1,im2,flow):# to check how flopw works
     input()
 
 
-def cluster():
 # assemble them in clusters
+def cluster(frame):
+
+    im = cv2.imread( "./res/" + str(frame).zfill(6) + "_cluster_test.png",cv2.IMREAD_GRAYSCALE)
+    im[ im == 0 ] = 1
+    im = im - 1
+    im[ im == 0] = 255
+    mn = np.amin(im)
+    num_labels = 255-mn
+    print(" frame : {} , number of clusters {}".format(frame,num_labels))
+
+    clusters = [ [] for i in range(num_labels) ]
+
+    for i,x in enumerate(im): 
+       for j,y in enumerate(x): 
+
+           y = 254 - y
+           if y < 0:
+               continue
+
+           clusters[y].append([i,j])
+
+
+    clusters.append(im.shape)
+    return clusters
+
 # track it using optical flow
+#def track_clusters(cl_im1,cl_im2,frame):
+
 # single color coding scheme
 # assign reference points to clusters
 
@@ -89,8 +115,10 @@ if __name__ == "__main__":
          im1 = cv2.imread(data + str(frame-1).zfill(6) + ".png")
          im2 = cv2.imread(data + str(frame).zfill(6) + ".png")
 
-         flow,im2W = calculate_flow(im1,im2) 
-         wrap_im = wrap_image(im1,im2,flow)
-         save_flow(flow,frame,im2,im2W,wrap_im)
+         #flow,im2W = calculate_flow(im1,im2) 
+         #wrap_im = wrap_image(im1,im2,flow)
+         #save_flow(flow,frame,im2,im2W,wrap_im)
+         clusters = cluster(frame)
+         np.save(result_fol + "clusters_" + str(frame).zfill(6) + ".npy",clusters)
 
 
