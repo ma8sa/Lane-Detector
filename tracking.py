@@ -158,7 +158,7 @@ class Cluster:
         #if not os.path.exists(res_fol):
          #       os.makedirs(res_fol)
 
-        #np.save(res_fol + str(self.frame).zfill(6) + "_tracks.npy",self.ref_points)
+        np.save(res_fol + str(self.frame).zfill(6) + "_tracks.npy",np.array(self.ref_points))
           
         print(" saving viziualitaions results ")
         if viz:
@@ -194,6 +194,7 @@ class Cluster:
     
 
 if __name__ == "__main__":
-     
+  
    tracklet = Cluster(5,17201)
    tracklet.save_ref_array()
+
