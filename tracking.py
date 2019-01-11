@@ -9,7 +9,7 @@ class Cluster:
 
         self.frame = frame
         self.window = window
-        print( " intializing tracklets for frame {}, window Length {}".format(self.frame,self.window))
+        print( "Frame= {}, Window= {} initializing".format(self.frame,self.window))
         self.cluster_array = self.create_cluster_array()
         self.flow_array = self.create_flow_array()
         self.cluster_image_array = self.create_image_array()
@@ -24,7 +24,7 @@ class Cluster:
         for i in range(self.window):
             test[i] = np.load(res_fol + "clusters_" + str(self.frame+i).zfill(6) + ".npy")
             test[i] = test[i][:-1]
-        print(" cluster array created") 
+        print("-----------------      cluster array created") 
         return test 
 
 
@@ -33,7 +33,7 @@ class Cluster:
         res_fol = "./res/"# TODO change it to make ti portable
         for i in range(self.window):
             test[i] = np.load( str(self.frame+i).zfill(5) + "_frame.npy")
-        print(" flow array created") 
+        print("-----------------      flow array created") 
         return test 
 
 
@@ -42,7 +42,7 @@ class Cluster:
         res_fol = "./res/"# TODO change it to make ti portable
         for i in range(self.window):
             test[i] = cv2.imread( "./res/" + str(self.frame+i).zfill(6) + "_cluster_test.png",cv2.IMREAD_GRAYSCALE)
-        print(" image array created") 
+        print("-----------------      image array created") 
         return test 
 
 
@@ -74,19 +74,22 @@ class Cluster:
                         continue
                     else:
                         track_score[label] += 1
+                score = -1
+                if not len(track_score):
+                    a = -1
+                    print(track_score)
+                    print(" cluster {} , frame {} , frame id {}".format(i,f,self.frame))
+                else:
+                    a = np.argmax(track_score)
 
-
-                a = np.argmax(track_score)
-                score = track_score[a]
-                scores[f].append(score)
+                    score = track_score[a]
+                    scores[f].append(score)
                 if score < th:
                     a = -1
                 test[f].append(a)
 
-            print(test[f])
-            print(scores[f])
 
-        print(" Tracklets created") 
+        print("-----------------      Tracklets created") 
         return test
 
     def tracked(self): # return perfect list with all the valid tracked clusters
@@ -115,7 +118,7 @@ class Cluster:
 
             #if valid
             #add to list
-        print(" Tracklets tracked") 
+        print("-----------------      Tracklets tracked") 
 
         return tracked
 
@@ -125,7 +128,6 @@ class Cluster:
             for x in (clust[cur_id]):
                 #plot images poiints
                 im[x[0],x[1]] = 255
-            print(cur_id)
             if f < self.window-1:
                cur_id = self.tracks[f][cur_id]
             cv2.imwrite(str(f).zfill(3) + "_test.png",im)
@@ -149,18 +151,17 @@ class Cluster:
                 test.append([rx,ry])
             ref_points.append(test)
 
-        print(" reference points created ") 
+        print("-----------------      reference points created ") 
         return ref_points
 
 
     def save_ref_array(self,viz=True,res_fol="./tracklets/"):# refence points imnages and arrays as npy
-        print(" in here ")
         #if not os.path.exists(res_fol):
          #       os.makedirs(res_fol)
 
         np.save(res_fol + str(self.frame).zfill(6) + "_tracks.npy",np.array(self.ref_points))
           
-        print(" saving viziualitaions results ")
+        print("-----------------      saving viziualitaions results ")
         if viz:
             images = [ np.zeros((720,1280,3), dtype=np.uint8) for i in range(self.window) ]
 
@@ -173,7 +174,7 @@ class Cluster:
             for clust,track in enumerate(self.ref_points):
                 for i,ix in enumerate(track):
 
-                      cv2.putText(images[i],str(clust).zfill(2), 
+                      cv2.putText(images[i],str(clust), 
                                   (int(ix[0]),int(ix[1])), 
                                   font, 
                                   fontScale,
@@ -190,11 +191,23 @@ class Cluster:
 
 #TODO check if tracking is corrct 
 #TODO check if arrays were correctly made
-
+#TODO add argparse
+#TODO add reverse flow
+#TODO add oclusion and cluster breaking issues
+#TODO add points in tracked tracking images 
     
 
 if __name__ == "__main__":
-  
-   tracklet = Cluster(5,17201)
-   tracklet.save_ref_array()
+   window = 10
+   data = "./data/Left"
+   im = os.listdir(data)
+
+   im = [int(x.strip(".png")) for x in im]
+   im.sort()
+
+   for frame in im[130:]:
+
+       tracklet = Cluster(window,frame)
+       tracklet.save_ref_array()
+       del tracklet
 
