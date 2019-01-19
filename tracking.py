@@ -91,10 +91,9 @@ class Cluster:
     def create_tracklets_array(self,th=10):# flow is frame1 + flow2 --> frame2
         test = [ [] for i in range(self.window -1)]
         scores = [ [] for i in range(self.window -1)]
-
+        
         for f,clust in enumerate(self.cluster_array[:-1]):
             for i,x in enumerate(clust):
-
                 flow = self.flow_array[f+1]
                 clust_img = self.cluster_image_array[f+1]
 
@@ -128,6 +127,7 @@ class Cluster:
                 if score < th:
                     a = -1
                 test[f].append(a)
+
 
 
         if self.ver:
