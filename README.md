@@ -4,6 +4,7 @@ Basic lane marker detection and traking using Semantic segmentaion and basic Ima
 - [x] Start the readme
 - [ ] mention about Prerequisites
 - [ ] Mention about the parameters in readme.md
+- [ ] Mention about what input the codes take and thier subsewuent output and folders 
 
 ## How To use :
 1. Get segmented images in appropriate folders.
@@ -18,5 +19,11 @@ This will create cluster images
 ```
 python cluster_tracking.py
 ```
-4. clustering.py will track the previous objects based and form nice tracklets and will other pre proicessing such as creating refence point ofr each object in each frame
+4. clustering.py will track the previous objects based and form nice tracklets and will other pre proicessing such as creating refence point of each object in each frame.
+```
+python clustering.py
+```
 5. Finally graph.py will take all these tracklets( cars , poles , lanes ) Create an graph and ask for annotaions and create a graph in am format whoich can be used by the muli relational GCN
+```
+python graph.py
+```
