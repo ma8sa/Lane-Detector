@@ -15,7 +15,8 @@ python pole_detector.py
 python car_detector.py
 ```
 This will create cluster images
-3. Then run Cluster_tracking.py to cluster and track lanes and poles, generate optical flow and save the result(tracklets) in npy format
+3. Then run Cluster_tracking.py to cluster and track lanes and poles, generate optical flow and save the result(tracklets) in npy format 
+first run with flow creation == True
 ```
 python cluster_tracking.py
 ```
