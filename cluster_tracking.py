@@ -69,9 +69,9 @@ def wrap_image(im1,im2,flow):# to check how flopw works
 
 
 # assemble them in clusters
-def cluster(frame):
+def cluster(frame,result_fol):
 
-    im = cv2.imread( "./res/" + str(frame).zfill(6) + "_cluster_test.png",cv2.IMREAD_GRAYSCALE)
+    im = cv2.imread( result_fol + str(frame).zfill(6) + "_cluster_test.png",cv2.IMREAD_GRAYSCALE)
     im[ im == 0 ] = 1
     im = im - 1
     im[ im == 0] = 255
@@ -105,7 +105,7 @@ def cluster(frame):
 if __name__ == "__main__":
 
      data = "./data/Left/"
-     result_fol = "./res/"
+     result_fol = "./pole_res/" # Change this to shift betweeen poles and lanes
      im = os.listdir(data)
 
      im = [int(x.strip(".png")) for x in im]
@@ -115,10 +115,10 @@ if __name__ == "__main__":
          im1 = cv2.imread(data + str(frame-1).zfill(6) + ".png")
          im2 = cv2.imread(data + str(frame).zfill(6) + ".png")
 
-         #flow,im2W = calculate_flow(im1,im2) 
-         #wrap_im = wrap_image(im1,im2,flow)
-         #save_flow(flow,frame,im2,im2W,wrap_im)
-         clusters = cluster(frame)
+         flow,im2W = calculate_flow(im1,im2) 
+         wrap_im = wrap_image(im1,im2,flow)
+         save_flow(flow,frame,im2,im2W,wrap_im)
+         clusters = cluster(frame,result_fol)
          np.save(result_fol + "clusters_" + str(frame).zfill(6) + ".npy",clusters)
 
 

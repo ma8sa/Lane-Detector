@@ -42,6 +42,9 @@ color = [
        [182, 251, 87],
        [90, 162, 242] ]
 
+def eq_dis(a,b):
+    d = (a[0]-b[0])**2 + (a[1]-b[1])**2
+    return np.sqrt(d)
 
 def get_GT(seq):
     assist = True
@@ -62,12 +65,14 @@ def get_GT(seq):
     ix = x
     change = 0
     c_at = 0
+
     for j,i in enumerate(seq):
         if ix != i:
             change += 1
             cx = i
             ix = i
             c_at = j
+
     if change == 1 and c_at >= 1 and c_at <= 9:# threshold for how long should the change be
 
         # case 1
@@ -99,36 +104,41 @@ def get_GT(seq):
         if x == 3 and cx == 0: # BR -> FL = MA 
             return 1,False
     else:
-        return 0,True
+        return 5,False
 
 
 def find_relation(p,q):
     a = p[0] - q[0]
     b = p[1] - q[1]
-    if a > 0 and b > 0:
+    th = 5
+    if a > th and b > th:
         return 1
 
-    if a > 0 and b <= 0:
-        return 0
+    if a > th and b <= th:
+        return 0 
 
-    if a <= 0 and b > 0:
+    if a <= th and b > th:
         return 3
 
-    if a <= 0 and b <= 0:
+    if a <= th and b <= th:
         return 2
+    else:
+        return 1
 
     print("WTF")
     input()
 
 
 
-def read_tracklets(fol,frame,window=10):
+def read_tracklets(fol,fol2,frame,window=10,rel_dist=720):
     #print("Frame : {} ".format(frame))
     test = np.load(fol + str(frame).zfill(6) + "_tracks.npy")# lanemarkings
-    cars = np.load("./car_tracks/" + str(frame).zfill(6) + "_tracks.npy")# cars 
+    test2 = np.load(fol2 + str(frame).zfill(6) + "_tracks.npy")# lanemarkings
+    #cars = np.load("./car_tracks/" + str(frame).zfill(6) + "_tracks.npy")# cars 
+    cars = np.load("./cars2/" + str(frame).zfill(6) + "_tracks.npy")# cars 
     lanes = [ i for i in test if len(i) > 0 ] 
     cars = [ i for i in cars if len(i) > 0 ]
-    poles = []
+    poles = [ i for i in test2 if len(i) > 0 ] 
 
     relations = { 0 : " Forward Left ",
                   1 : " Forward Right ",
@@ -143,15 +153,15 @@ def read_tracklets(fol,frame,window=10):
     
     objects = lanes + cars + poles
 
-
     len_objects = (len(objects))
-
       
     lane_idx = list(range(len(lanes)))
     len_lane = len(lane_idx) 
     car_idx = list(range(len_lane,len_lane+len(cars))) 
     len_car = len(car_idx)
-    pole_idx = list(range(len_lane+len_car+1,len_lane+len_car+1+len(poles))) 
+    pole_idx = list(range(len_lane+len_car,len_lane+len_car+len(poles))) 
+
+    print(pole_idx)
 
     vv = [ 0 for i in range(len(objects)) ]
     for i in lane_idx:
@@ -159,26 +169,31 @@ def read_tracklets(fol,frame,window=10):
     for i in car_idx:
         vv[i] = 0
     for i in pole_idx:
+        print(i)
         vv[i] = 2
-
+    print(vv)
+    input()
 
     GT = [ ]
     GT_n = [ ]
     input_data = []
-    GT_labels = { 0 : "No change",
+
+    GT_labels = {     0 : "No change",
                       1 : "Moved Ahead",
                       2 : "Moved Behind",
                       3 : "Moved across left",
                       4 : "Moved across right",
+                      5 : "Fluctuating",
                      -1 : " requires GT "
                       }
 
-    
-
     count = 0
     ind_x =[]
+
     for i in objects:
         ind_x.append(i[0])
+
+    max_dis = False 
 
     for i,clust in enumerate(objects):
         for j,clust2 in enumerate(objects):
@@ -188,32 +203,36 @@ def read_tracklets(fol,frame,window=10):
             if i == j or vv[i]*vv[j] > 0: # to get rid of self edges and edges between cars and edges
                continue
 
-           # defi = window - len(clust)
-           # last = clust[-1]
-           # for i in range(defi):
-           #     clust.append(last)
+            if eq_dis(clust[0],clust2[0]) > rel_dist and  eq_dis(clust[-1],clust2[-1]) > rel_dist:
+                max_dis = True
 
-           # defi = window - len(clust2)
-           # last = clust2[-1]
-           # for i in range(defi):
-           #     clust2.append(last)
+            defi = window - len(clust)
+            last = clust[-1]
+            for i in range(defi):
+                clust.append(last)
+
+            defi = window - len(clust2)
+            last = clust2[-1]
+            for i in range(defi):
+                clust2.append(last)
 
             for frame in range(window):
+
                 obj = stuff[vv[i]] + str(i).zfill(2)
                 sub = stuff[vv[j]] + str(j).zfill(2)
                 obj_p = clust[frame]
                 sub_p = clust2[frame]
 
                 x = find_relation(obj_p,sub_p)
-                
                 rel = relations[x]
-                
-
 
                 test.append(obj+rel+sub)
                 test2.append([vv[i],i,x,vv[j],j])
                 
             gt,assist = get_GT(test2)
+
+            if gt == 0 and max_dis:
+                continue
             
             if gt < 0:
                for t in test:
@@ -241,24 +260,30 @@ def read_tracklets(fol,frame,window=10):
                    
 
 def create_adj(input_data,GT,vv,idx,frame):
-    num_obj = len(vv)
-    adj = [ np.zeros((num_obj,num_obj)) for i in range(5) ] # because we have five realtions TODO check wehter to use eye or zzeros
 
-    GT_labels = { 0 : "No change",
+    num_obj = len(vv)
+    adj = [ np.zeros((num_obj,num_obj)) for i in range(6) ] # because we have five realtions TODO check wehter to use eye or zzeros
+
+
+    GT_labels = { 
+                      0 : "No change",
                       1 : "Moved Ahead",
                       2 : "Moved Behind",
                       3 : "Moved across left",
                       4 : "Moved across right",
+                      5 : "Fluctuating",
                      -1 : " requires GT "
-                      }
+                }
 
-    stuff = { 0 : " Cars ",
+    stuff = {
+              0 : " Cars ",
               1 : " Lane ",
               2 : " Pole ",
-                 }
+            }
+
     cars = 0
     lanes = 0
-    rel_n = [ 0 for i in range(6) ]
+    rel_n = [ 0 for i in range(7) ]
     vertex = [ [] for i in range(num_obj)]
   
   
@@ -274,7 +299,7 @@ def create_adj(input_data,GT,vv,idx,frame):
     cars = len(vv[ vv == 0])
     lanes = len(vv[ vv == 1])
 
-    for i in range(6):
+    for i in range(7):
         rel_n[i] = len(GT[ GT == (i-1) ])
 
     for i,d in enumerate(input_data):
@@ -282,7 +307,6 @@ def create_adj(input_data,GT,vv,idx,frame):
         obj = d[0][1]
         sub = d[0][-1] 
         rel = GT[i]
-    #    print(obj,sub,rel)
         if rel >= 0:
            adj[rel][obj,sub] = 1
            vertex[obj].append(str(rel) + GT_labels[rel] + stuff[vv[sub]] + str(sub))
@@ -291,50 +315,79 @@ def create_adj(input_data,GT,vv,idx,frame):
 #        print(a)
 #        input()
 
-    node_labels = { 0 : "static",
-                    1 : "moving forward",
-                    2 : "moving back",
-                    3 : "changing lane",
-                    }
+    node_labels = {
+                    0 : "parked",
+                    1 : "moving towards us",
+                    2 : "moving away",
+                    3 : "overtaking car",
+                    4 : "changing lane",
+                  }
+
+
+    GT_color = [ 
+                (0,0,255),
+                (255,0,255),
+                (0,255,255),
+                (0,255,0),
+                (255,0,255)
+               ]
+
     A = [ sp.csr_matrix(a) for a in adj ]
     print("saving stuff")
-    np.save("./Adj/" + str(frame).zfill(6) + "_Adj.npy",A)
+    #np.save("./Adj/" + str(frame).zfill(6) + "_Adj.npy",A)
+    np.save("./Adj/" + str(frame).zfill(6) + "_IDX.npy",idx)
+    if not (len(idx) == num_obj) :
+       print( " wtf {}, {} ".fomat(len(idx),num_obj))
+       input()
+    #cv2.imwrite("./Adj/" + str(frame).zfill(6) + "_im.png",im)
 
     node_GT = [0 if v > 0 else -1 for v in vv]
+#TODO remove edge/nodes and show indexed image inplace 
+    
+    for i,ii in enumerate(node_GT):
+#        print(idx[i])
+        a = int(idx[i][1])
+        b = int(idx[i][0])
+    
+        cv2.circle(im,(a,b),7,GT_color[ii],-1)
 
+        if ii < 0:
+           font = cv2.FONT_HERSHEY_SIMPLEX
+           cv2.putText(im,str(i).zfill(2),(a,b), font, 2,(255,255,255),2,cv2.LINE_AA)
+
+    cv2.imwrite("./graph_res/" + str(frame).zfill(6) + "pre.png",im)
     for i,_ in enumerate(node_GT):
-
        if node_GT[i] < 0:
            node_GT[i] = 2
            tmp = []
            for j in vertex[i]:
                tmp.append(int(j[0]))
+           print( " node number : {} ".format(i))
+           print( tmp) 
            tmp = np.array(tmp)
            tmp =  tmp == 0 
            if (tmp.all()):
                x = 0
            else:
-               for j in vertex[i]:
-                   print(j[1:])
+               #for j in vertex[i]:
+               #    print(j[1:])
                print(node_labels.items())
+               print( " node number : {} ".format(i))
                x = int(input(" enter ground truth for this node: "))
+               #x = 2
            node_GT[i] = x
 
-
-    np.save("./Adj/" + str(frame).zfill(6) + "_y.npy",node_GT)
+    #np.save("./Adj/" + str(frame).zfill(6) + "_y.npy",node_GT)
+    #np.save("./Adj/" + str(frame).zfill(6) + "_X.npy",vv)
+    #np.save("./Adj/" + str(frame).zfill(6) + "_y.npy",Tnode_GT)
     # color the image here
-    GT_color = [ 
-            (0,0,255),
-            (255,0,255),
-            (0,255,255),
-            (0,255,0)
-            ]
-
     clr = [ tuple(c) for c in color ]
     for i,ii in enumerate(node_GT):
-#        print(idx[i])
+        print(idx[i])
+        print(i,ii)
         cv2.circle(im,(int(idx[i][1]),int(idx[i][0])),7,GT_color[ii],-1)
 
+    print("drawing edges ")
     for i,d in enumerate(input_data):
 
         obj = d[0][1]
@@ -368,15 +421,21 @@ if __name__ == "__main__":
     
     # read the npy
     data = "./tracklets/"
+    data2 = "./pole_tracklets/"
     im = os.listdir(data)
 
     im = [int(x.strip("_tracks.npy")) for x in im if ".npy" in x ]
     im.sort()
+
     cars=0
     lanes=0
-    rel = np.array([ 0 for i in range(6) ])
-    for i in im:
-        input_data,GT,vv,idx = read_tracklets(data,i)
+    rel = np.array([ 0 for i in range(7) ])
+    print( " TOTAL FRAME : {} ".format(len(im)))
+    st_frame = int(input(" strat frame ")) 
+
+    for i in im[st_frame:]:
+        print("\n\nFRAME : {} \n".format(i))
+        input_data,GT,vv,idx = read_tracklets(data,data2,i)
         c,l,r = create_adj(input_data,GT,vv,idx,i)
 
         cars += c

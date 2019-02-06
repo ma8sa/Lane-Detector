@@ -42,11 +42,21 @@ color = [
 
 class Cluster:
 
-    def __init__(self,window,frame,verbose=False):
+    def __init__(self,window,frame,load_fol="./pole_res/",save_fol="./pole_tracklets/",verbose=False):
 
         self.frame = frame
         self.window = window
         self.ver = verbose
+        self.load_fol = load_fol
+        self.save_fol = save_fol
+        self.type = "POLE"
+        if self.type == "POLE":
+            self.load_fol = "./pole_res/"
+            self.save_fol = "./pole_tracklets/"
+        else:
+            self.load_fol = "./res/"
+            self.save_fol = "./tracklets/"
+
         print( "Frame= {}, Window= {} initializing".format(self.frame,self.window))
         self.cluster_array = self.create_cluster_array()
         self.flow_array = self.create_flow_array()
@@ -58,7 +68,7 @@ class Cluster:
     
     def create_cluster_array(self):
         test = [ [] for i in range(self.window) ]
-        res_fol = "./res/"# TODO change it to make ti portable
+        res_fol = self.load_fol# TODO change it to make ti portable
         for i in range(self.window):
             test[i] = np.load(res_fol + "clusters_" + str(self.frame+i).zfill(6) + ".npy")
             test[i] = test[i][:-1]
@@ -69,7 +79,7 @@ class Cluster:
 
     def create_flow_array(self):
         test = [ [] for i in range(self.window) ]
-        res_fol = "./res/"# TODO change it to make ti portable
+        res_fol = self.load_fol# TODO change it to make ti portable
         for i in range(self.window):
             test[i] = np.load( str(self.frame+i).zfill(5) + "_frame.npy")
         if self.ver:
@@ -79,9 +89,9 @@ class Cluster:
 
     def create_image_array(self):
         test = [ [] for i in range(self.window) ]
-        res_fol = "./res/"# TODO change it to make ti portable
+        res_fol = self.load_fol# TODO change it to make ti portable
         for i in range(self.window):
-            test[i] = cv2.imread( "./res/" + str(self.frame+i).zfill(6) + "_cluster_test.png",cv2.IMREAD_GRAYSCALE)
+            test[i] = cv2.imread( self.load_fol + str(self.frame+i).zfill(6) + "_cluster_test.png",cv2.IMREAD_GRAYSCALE)
         if self.ver:
            print("-----------------      image array created") 
         return test 
@@ -91,16 +101,20 @@ class Cluster:
     def create_tracklets_array(self,th=10):# flow is frame1 + flow2 --> frame2
         test = [ [] for i in range(self.window -1)]
         scores = [ [] for i in range(self.window -1)]
+        valid = [ [] for i in range(self.window -1)] # valid if true means that the net noe is a pseudo node
         
         for f,clust in enumerate(self.cluster_array[:-1]):
+
+            clust = self.cluster_array[f]
+
+            pseudo = False
+            no_of_clusters = len(self.cluster_array[f+1])
+            flow = self.flow_array[f+1]
+            clust_img = self.cluster_image_array[f+1]
+
             for i,x in enumerate(clust):
-                flow = self.flow_array[f+1]
-                clust_img = self.cluster_image_array[f+1]
 
-                no_of_clusters = len(self.cluster_array[f+1])
                 track_score = np.zeros(no_of_clusters)
-                
-
                 for y in x:
                     fx,fy = flow[y[0],y[1]]
                     # TODO not sure about this 
@@ -109,11 +123,16 @@ class Cluster:
                     
                     if nx < 0 or nx >= 720 or ny < 0 or ny >=1280:
                         continue
+
                     label = 255 - clust_img[nx,ny]
+
                     if label >= 255:
                         continue
                     else:
                         track_score[label] += 1
+
+
+
                 score = -1
                 if not len(track_score):
                     a = -1
@@ -124,9 +143,62 @@ class Cluster:
 
                     score = track_score[a]
                     scores[f].append(score)
+
                 if score < th:
                     a = -1
+
+                if a ==(-1):
+
+                    # TODO add pseudo node 
+                    new_x = []
+                    for y in x:
+
+                        fx,fy = flow[y[0],y[1]]
+                        # TODO not sure about this 
+                        nx = int(y[0] + fy + 1)
+                        ny = int(y[1] + fx + 1) 
+                        
+                        if nx < 0 or nx >= 720 or ny < 0 or ny >=1280:
+                            continue
+
+                        new_x.append([nx,ny])
+
+                    if len(new_x):
+                       a = len(self.cluster_array[f+1])
+                       self.cluster_array[f+1] = np.append(self.cluster_array[f+1],[[1]])
+                       #self.cluster_array[f+1] = np.append(self.cluster_array[f+1],new_x)
+
+                       if (len(new_x)) == 0:
+                           print(f,i)
+
+                       
+                       self.cluster_array[f+1][-1] = new_x
+                       print("adding new node , {} , {}".format(f+1,a))
+                       # Copy x to next frame
+                       # update a 
+                       # 
+                       pseudo = True 
+
                 test[f].append(a)
+                valid[f].append(pseudo)
+            
+
+        for i,x in enumerate(test[0]):# iterating over clusters
+                st = i
+                cur = st
+                pseudo_count = 0
+
+                
+                for f in range(self.window-1):
+                    if valid[f][cur]:
+                       pseudo_count += 1
+
+                    cur = test[f][cur]
+                if pseudo_count > 3:
+                    print("found one",st,cur)
+                    test[0][st] = -1
+
+
 
 
 
@@ -147,13 +219,18 @@ class Cluster:
             test = []
             for f,clust in enumerate(self.cluster_array):
                test.append(clust[cur_id])
+
+               if len(clust[cur_id]) == 0:
+                   print("tracked")
+                   print(f,cur_id)
+                   input()
                if f < self.window-1:
                   cur_id = self.tracks[f][cur_id]
 
                if cur_id == (-1):
                   valid = False
                   break
-
+            # TODO handle occlusion here
             if valid:
                 tracked.append(test)
 
@@ -183,15 +260,24 @@ class Cluster:
             for clust in i:
                 rx = 0.
                 ry = 0.
+                mx = 0
+                my = 0
                 count = 0.
                 for p in clust:
                     rx += p[0]
                     ry += p[1]
                     count += 1
+                    mx = max(p[0],mx)
+                    my = max(p[1],my)
+                    print(p[0],p[1])
 
                 rx = (rx/count)
                 ry = (ry/count)
-                test.append([rx,ry])
+                # TODO change here , add a switch statement based on type of object
+                if self.type == "POLE":
+                    test.append([mx,ry])
+                else:
+                    test.append([rx,ry])
             ref_points.append(test)
 
         if self.ver:
@@ -199,10 +285,10 @@ class Cluster:
         return ref_points
 
 
-    def save_ref_array(self,viz=True,res_fol="./tracklets/"):# refence points imnages and arrays as npy
+    def save_ref_array(self,viz=True):# refence points imnages and arrays as npy
         #if not os.path.exists(res_fol):
          #       os.makedirs(res_fol)
-
+        res_fol = self.save_fol
         np.save(res_fol + str(self.frame).zfill(6) + "_tracks.npy",np.array(self.ref_points))
         if self.ver: 
            print("-----------------      saving viziualitaions results ")
@@ -254,7 +340,7 @@ if __name__ == "__main__":
 
    im = [int(x.strip(".png")) for x in im]
    im.sort()
-
+   #TODO add argparse
    for frame in im[1:]:
 
        tracklet = Cluster(window,frame)
