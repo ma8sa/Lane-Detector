@@ -9,14 +9,13 @@ def color_array(size=25):
     return np.array(color)
 
 
-def mask_out(frame_no,th=87,path="./data/",mask_color=[255,255,255]):
+def mask_out(frame_no,th=74,path="./data/",mask_color=[255,255,255]):
 
     img = path + "Left/" + str(frame).zfill(6) + ".png"
     s_img = path + "17200/" + str(frame).zfill(6) + ".png"
 
     image = cv2.imread(img)
     seg_image = cv2.imread(s_img)
-
     mask = seg_image[:,:] == mask_color
     mask = mask[:,:,0] & mask[:,:,1] & mask[:,:,2]
 
@@ -48,7 +47,7 @@ def mask_out(frame_no,th=87,path="./data/",mask_color=[255,255,255]):
     #return image,th_image,seg_image
 
 
-def cluster_c(th_image,eps_=3,min_samples_=15):
+def cluster_c(th_image,eps_=4,min_samples_=15):
     #convert images to array of ones
     X = th_image == 255
     size = th_image.shape  
@@ -96,8 +95,10 @@ if __name__ == "__main__":
 
     im = [int(x.strip(".png")) for x in im]
     im.sort()
-
-    for frame in im:
+    print(im[1169])
+    print(im[1800])
+    input()
+    for frame in im[1169:1800]:
 
         print(" Processing frame : {}".format(frame))
         #frame = 17536
